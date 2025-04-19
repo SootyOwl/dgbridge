@@ -4,11 +4,16 @@ import (
 	"dgbridge/src/ext"
 	"dgbridge/src/lib"
 	"fmt"
-	"github.com/bwmarrin/discordgo"
 	"log"
+	"regexp" // Added import
 	"sort"
 	"sync"
+
+	"github.com/bwmarrin/discordgo"
 )
+
+// Added regex to strip ANSI color codes
+var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 
 // BotParameters holds data to be passed to StartDiscordBot.
 type BotParameters struct {
@@ -87,6 +92,12 @@ func (self *BotContext) startRelayJob(session *discordgo.Session, event *ext.Eve
 			// No rules matched.
 			continue
 		}
+		// Strip ANSI color codes from the line before sending it to Discord
+		// This is necessary to avoid sending raw ANSI codes to Discord, which are
+		// ugly, but still allows the subprocess to use colors and the rules to match
+		// using ANSI codes.
+		line = ansiRegex.ReplaceAllString(line, "")
+		// Send the message to the Discord channel
 		_, err := session.ChannelMessageSend(self.relayChannelId, line)
 		if err != nil {
 			log.Printf("error sending message to discord: %v", err)
