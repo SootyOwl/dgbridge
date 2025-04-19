@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"log"
+	"sort"
 	"sync"
 )
 
@@ -93,8 +94,66 @@ func (self *BotContext) startRelayJob(session *discordgo.Session, event *ext.Eve
 	}
 }
 
-// Listens for Discord message creation events and relays the
-// contents of those messages to the subprocess.
+// getHighestRoleWithColor finds the highest positioned role with a color for the member.
+// It returns the color value (int) or 0 if no colored role is found or an error occurs.
+func getHighestRoleWithColor(s *discordgo.Session, m *discordgo.MessageCreate) int {
+	// Ensure member and guild information is available
+	if m.Member == nil || m.GuildID == "" || len(m.Member.Roles) == 0 {
+		return 0 // Cannot determine role color without member/guild/roles info
+	}
+
+	// Fetch all roles for the guild
+	guildRoles, err := s.GuildRoles(m.GuildID)
+	if err != nil {
+		log.Printf("error fetching guild roles for guild %s: %v", m.GuildID, err)
+		return 0 // Error fetching roles, cannot determine color
+	}
+
+	// Create a map for quick lookup of role details by ID
+	roleMap := make(map[string]*discordgo.Role, len(guildRoles))
+	for _, role := range guildRoles {
+		roleMap[role.ID] = role
+	}
+
+	// Filter member's roles to find those with colors
+	coloredRoles := make([]*discordgo.Role, 0)
+	for _, roleID := range m.Member.Roles {
+		if role, ok := roleMap[roleID]; ok && role.Color != 0 {
+			coloredRoles = append(coloredRoles, role)
+		}
+	}
+
+	// If no colored roles were found for the member
+	if len(coloredRoles) == 0 {
+		return 0
+	}
+
+	// Sort the colored roles by position (highest first)
+	sort.Slice(coloredRoles, func(i, j int) bool {
+		return coloredRoles[i].Position > coloredRoles[j].Position
+	})
+
+	// Return the color of the highest positioned role
+	return coloredRoles[0].Color
+}
+
+// getAccentColor determines the accent color based on the user's highest role or default accent color.
+func getAccentColor(s *discordgo.Session, m *discordgo.MessageCreate) int {
+	// Try to get the color from the highest role
+	roleColor := getHighestRoleWithColor(s, m)
+	if roleColor != 0 {
+		return roleColor
+	}
+
+	// Fallback to the user's profile accent color if available
+	if m.Author.AccentColor != 0 {
+		return m.Author.AccentColor
+	}
+
+	// Default color if no role color or profile accent color is found
+	return 0 // Or some other default color value if desired
+}
+
 func (self *BotContext) messageCreate() func(s *discordgo.Session, m *discordgo.MessageCreate) {
 	return func(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if m.Author.ID == s.State.User.ID {
@@ -106,16 +165,22 @@ func (self *BotContext) messageCreate() func(s *discordgo.Session, m *discordgo.
 			return
 		}
 		msg := m.Content
-		msg = lib.ApplyRules(self.rules.DiscordToSubprocess, &lib.Props{
+		props := &lib.Props{
 			Author: lib.Author{
 				Username:      m.Author.Username,
 				Discriminator: m.Author.Discriminator,
-				AccentColor:   m.Author.AccentColor,
-			}}, msg)
+				AccentColor:   getAccentColor(s, m),
+			},
+		}
+
+		// Apply conversion rules
+		msg = lib.ApplyRules(self.rules.DiscordToSubprocess, props, msg)
 		if msg == "" {
-			// No rules matched.
+			// No rules matched or message was filtered out.
 			return
 		}
+
+		// Relay the processed message to the subprocess stdin
 		self.subprocess.WriteStdinLineEvent.Broadcast(msg + "\n")
 	}
 }
