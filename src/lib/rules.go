@@ -25,10 +25,12 @@ type (
 	}
 	Author struct {
 		Username      string `validate:"required"`
+		Nickname      string // Nickname might not be set
 		Discriminator string `validate:"required"`
 		AccentColor   int    `validate:"required"`
 	}
 )
+
 
 // LoadRules loads a set of rules from a JSON file.
 func LoadRules(path string) (*Rules, error) {
@@ -79,6 +81,8 @@ func ApplyRule(rule Rule, props *Props, input string) string {
 // Example:
 //   - ^U turns into Username
 //   - ^T turns into Discriminator
+//   - ^C turns into RoleColor/AccentColor
+//   - ^N turns into Nickname (or Username if Nickname is not set)
 //
 // Returns template with Props applied.
 func buildTemplate(template string, props Props) string {
@@ -103,6 +107,14 @@ func buildTemplate(template string, props Props) string {
 				continue
 			case 'C':
 				result = append(result, []rune(strconv.FormatInt(int64(props.Author.AccentColor), 16))...)
+				i++
+				continue
+			case 'N':
+				if props.Author.Nickname != "" {
+					result = append(result, []rune(props.Author.Nickname)...)
+				} else {
+					result = append(result, []rune(props.Author.Username)...)
+				}
 				i++
 				continue
 			}

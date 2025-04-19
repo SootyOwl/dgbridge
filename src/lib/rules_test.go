@@ -1,8 +1,9 @@
 package lib
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBuildTemplate(t *testing.T) {
@@ -17,12 +18,13 @@ func TestBuildTemplate(t *testing.T) {
 			Props: Props{
 				Author: Author{
 					Username:      "Bob^T",
+					Nickname:      "bobby",
 					Discriminator: "1337",
 					AccentColor:   0xFFFF00,
 				},
 			},
-			Input:  "<^U#^T> ${1} ^^ ^A ^C",
-			Expect: "<Bob^T#1337> ${1} ^ ^A ffff00",
+			Input:  "<^U#^T> ${1} ^^ ^A ^C ^N",
+			Expect: "<Bob^T#1337> ${1} ^ ^A ffff00 bobby",
 		},
 	}
 	for _, test := range tests {

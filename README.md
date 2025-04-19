@@ -163,7 +163,8 @@ The parameters available are:
 
 - `^U`: Discord username of sender
 - `^T`: Discord discriminator of sender (the #0000 tag)
-- `^C`: Discord user's display color
+- `^C`: Discord user's role display color or accent color
+- `^N`: Discord user's nickname (if available)
 - `^^`: Escape sequence for `^`
 
 The bridge will replace these parameters with variables from the context of the

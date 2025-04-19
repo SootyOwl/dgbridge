@@ -168,6 +168,7 @@ func (self *BotContext) messageCreate() func(s *discordgo.Session, m *discordgo.
 		props := &lib.Props{
 			Author: lib.Author{
 				Username:      m.Author.Username,
+				Nickname:      m.Member.Nick,
 				Discriminator: m.Author.Discriminator,
 				AccentColor:   getAccentColor(s, m),
 			},
