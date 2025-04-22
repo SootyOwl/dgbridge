@@ -4,9 +4,13 @@ import (
 	"dgbridge/src/ext"
 	"encoding/json"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 )
+
+// Added regex to strip ANSI color codes
+var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 
 type (
 	Rules struct {
@@ -52,6 +56,11 @@ func ApplyRules(rules []Rule, props *Props, input string) string {
 	for _, rule := range rules {
 		result := ApplyRule(rule, props, input)
 		if result != "" {
+			// Strip ANSI color codes from the line before sending it to Discord
+			// This is necessary to avoid sending raw ANSI codes to Discord, which are
+			// ugly, but still allows the subprocess to use colors and the rules to match
+			// using ANSI codes.
+			result = ansiRegex.ReplaceAllString(result, "")
 			return result
 		}
 	}
