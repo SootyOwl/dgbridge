@@ -3,6 +3,8 @@ package lib
 import (
 	"dgbridge/src/ext"
 	"encoding/json"
+	"errors"
+	"io/fs"
 	"os"
 	"regexp"
 	"strconv"
@@ -35,6 +37,27 @@ type (
 	}
 )
 
+// UserMap maps in-game 'nametags' to Discord User IDs, for mentioning.
+type UserMap map[string]string
+
+// LoadUserMap loads a user map from a JSON file.
+func LoadUserMap(path string) (UserMap, error) {
+	fileContents, err := os.ReadFile(path)
+	if err != nil {
+		// return an empty map if the file doesn't exist
+		if errors.Is(err, fs.ErrNotExist) {
+			return make(UserMap), nil
+		}
+		// otherwise return the error
+		return nil, err
+	}
+	var users UserMap
+	err = json.Unmarshal(fileContents, &users)
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}
 
 // LoadRules loads a set of rules from a JSON file.
 func LoadRules(path string) (*Rules, error) {
