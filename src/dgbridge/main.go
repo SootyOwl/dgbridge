@@ -36,9 +36,9 @@ func main() {
 			log.Printf("[warning] failed to load user map file '%s': %v\n", args.UsersFile, err)
 		}
 		// Ensure userMap is initialized to an empty map
-		userMap = make(lib.UserMap)
+		userMap = &lib.UserMap{}
 	} else if args.UsersFile != "" {
-		log.Printf("[info] loaded %d user map file '%s'\n", len(userMap), args.UsersFile)
+		log.Printf("[info] loaded %d user map file '%s'\n", len(*userMap), args.UsersFile)
 	}
 
 	subprocess := NewSubprocess(args.Command)
@@ -66,7 +66,7 @@ func main() {
 		RelayChannelId: args.ChannelId,
 		Subprocess:     &subprocess,
 		Rules:          *rules,
-		UserMap:		userMap,
+		UserMap:		*userMap,
 	})
 	if err != nil {
 		// This is a non-fatal error. We want the server to run even if the

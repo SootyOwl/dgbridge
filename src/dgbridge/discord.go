@@ -93,7 +93,7 @@ func (context *BotContext) startRelayJob(session *discordgo.Session, event *ext.
 		}
 
 		// Apply user tag replacements
-		line = lib.ApplyUserTags(line, context.userMap)
+		line = lib.ApplyUserTags(line, &context.userMap)
 
 		// Send the message to the Discord channel
 		_, err := session.ChannelMessageSend(context.relayChannelId, line)

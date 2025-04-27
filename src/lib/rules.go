@@ -45,12 +45,18 @@ type (
 type UserMap map[string]string
 
 // LoadUserMap loads a user map from a JSON file.
-func LoadUserMap(path string) (UserMap, error) {
+func LoadUserMap(path string) (*UserMap, error) {
+	// if the path is not set, return an empty map
+	if path == "" {
+		emptyMap := make(UserMap)
+		return &emptyMap, nil
+	}
 	fileContents, err := os.ReadFile(path)
 	if err != nil {
 		// return an empty map if the file doesn't exist
 		if errors.Is(err, fs.ErrNotExist) {
-			return make(UserMap), nil
+			emptyMap := make(UserMap)
+			return &emptyMap, nil
 		}
 		// otherwise return the error
 		return nil, err
@@ -60,7 +66,7 @@ func LoadUserMap(path string) (UserMap, error) {
 	if err != nil {
 		return nil, err
 	}
-	return users, nil
+	return &users, nil
 }
 
 // LoadRules loads a set of rules from a JSON file.
@@ -116,8 +122,8 @@ func ApplyRule(rule Rule, props *Props, input string) string {
 // Parameters:
 // input: The input string to apply the user tags to.
 // userMap: The user map to use for replacing @nickname mentions with Discord <@ID> mentions.
-func ApplyUserTags(input string, userMap UserMap) string {
-	if len(userMap) == 0 {
+func ApplyUserTags(input string, userMap *UserMap) string {
+	if userMap == nil || len(*userMap) == 0 {
 		return input // No user map, return the input as is
 	}
 
@@ -126,7 +132,7 @@ func ApplyUserTags(input string, userMap UserMap) string {
 		nickname := mentionRegex.FindStringSubmatch(match)[1]
 
 		// Check if the nickname exists in the user map
-		if userID, exists := userMap[nickname]; exists {
+		if userID, exists := (*userMap)[nickname]; exists {
 			// Found a match, return the Discord mention format
 			return fmt.Sprintf("<@%s>", userID)
 		}
