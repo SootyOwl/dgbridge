@@ -16,6 +16,8 @@
 - [Rules](#rules)
   - [Rules Example: Process ➡️ Discord](#rules-example-process-️-discord)
   - [Rules Example: Discord ➡️ Process](#rules-example-discord-️-process)
+- [Users](#users)
+  - [Example](#example)
 - [Automated Rule Testing](#automated-rule-testing)
 - [Questions](#questions)
   - [1. How does this differ from a Discord bridge like DiscordSRV?](#1-how-does-this-differ-from-a-discord-bridge-like-discordsrv)
@@ -88,6 +90,7 @@ as if it were running without a wrapper.
     dgbridge --token <YOUR_DISCORD_TOKEN> \
              --channel_id <CHANNEL_ID> \
              --rules <RULES_FILE> \
+             --users <USERS_FILE> \  (optional)
              <COMMAND>
 
 # Examples
@@ -97,6 +100,7 @@ as if it were running without a wrapper.
     dgbridge --token TOKEN \
              --channel_id CHANNEL_ID \
              --rules ./rules/minecraft.rules.json \
+             --users ./rules/minecraft.users.json \
              "java -Xms512M -Xmx1G -jar server.jar nogui"
 
 ## Terraria Example
@@ -174,6 +178,42 @@ Discord message.
 
 The program comes with pre-made rules for Minecraft and Terraria servers, so
 you can look at them for some more examples.
+
+# Users
+
+The `--users` flag is used to specify a JSON file containing a mapping of in-game usernames to Discord user IDs. This is used to mention users in Discord when they are "@tagged" in a message in the game.
+The JSON file should be in the following format:
+
+```json
+{
+    "Player1": "123456789012345678",
+    "Player2": "234567890123456789",
+    "Player3": "345678901234567890"
+}
+```
+
+Where the keys are the in-game usernames/nicknames/aliases and the values are the Discord user IDs.
+The Discord user IDs can be obtained by right-clicking on a user in Discord and selecting "Copy ID". This requires Developer Mode to be enabled in Discord settings.
+
+When a message is sent in the game that mentions a player, the bridge will replace the username with the corresponding Discord user ID, allowing for proper mentions in Discord.
+
+The users file is optional, but if you want to mention players in Discord, you will need to use it.
+
+## Example
+
+Using the example user mapping above, an in-game message like:
+
+```
+<Player1> Hello @Player2!
+```
+
+Would be sent to Discord as:
+
+```
+<Player1> Hello <@234567890123456789>!
+```
+
+Where `<@234567890123456789>` is the mention for Player2 in Discord.
 
 # Automated Rule Testing
 
