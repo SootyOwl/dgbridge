@@ -17,12 +17,14 @@ type BotParameters struct {
 	RelayChannelId string             // Saved in BotContext
 	Subprocess     *SubprocessContext // Saved in BotContext
 	Rules          lib.Rules          // Saved in BotContext
+	UserMap        lib.UserMap		  // Saved in BotContext
 }
 
 type BotContext struct {
 	relayChannelId string             // ID of destination Discord channel
 	subprocess     *SubprocessContext // Subprocess context
 	rules          lib.Rules          // Message conversion rules
+	userMap        lib.UserMap        // User map for mentioning
 	readyOnce      sync.Once          // Tracks if bot was initialized
 }
 
@@ -41,6 +43,7 @@ func StartDiscordBot(params BotParameters) (func(), error) {
 		relayChannelId: params.RelayChannelId,
 		subprocess:     params.Subprocess,
 		rules:          params.Rules,
+		userMap:        params.UserMap,
 		readyOnce:      sync.Once{},
 	}
 	dg.AddHandler(context.ready())

@@ -13,6 +13,7 @@ type CliArgs struct {
 	Token     string `arg:"required,-t,--token" help:"Discord authentication token"`
 	ChannelId string `arg:"required,-i,--channel_id" help:"Discord channel ID"`
 	RulesFile string `arg:"required,-r,--rules" help:"Path to the file with translation rules"`
+	UsersFile string `arg:"-u,--users" help:"Path to the file mapping in-game names to Discord User IDs for mentioning"`
 	Command   string `arg:"required,positional"`
 }
 
@@ -26,6 +27,18 @@ func main() {
 	rules, err := lib.LoadRules(args.RulesFile)
 	if err != nil {
 		log.Fatalf("error loading rules: %v\n", err)
+	}
+
+	userMap, err := lib.LoadUserMap(args.UsersFile)
+	if err != nil {
+		// Log non-fatal errors if the file is specified but failed to load
+		if args.UsersFile != "" {
+			log.Printf("[warning] failed to load user map file '%s': %v\n", args.UsersFile, err)
+		}
+		// Ensure userMap is initialized to an empty map
+		userMap = make(lib.UserMap)
+	} else if args.UsersFile != "" {
+		log.Printf("[info] loaded %d user map file '%s'\n", len(userMap), args.UsersFile)
 	}
 
 	subprocess := NewSubprocess(args.Command)
@@ -53,6 +66,7 @@ func main() {
 		RelayChannelId: args.ChannelId,
 		Subprocess:     &subprocess,
 		Rules:          *rules,
+		UserMap:		userMap,
 	})
 	if err != nil {
 		// This is a non-fatal error. We want the server to run even if the
