@@ -9,6 +9,7 @@ import (
 type TestRunner struct {
 	TestFile *FileRoot
 	Rules    *lib.Rules
+	userMap  *lib.UserMap
 }
 
 type TestResults struct {
@@ -17,13 +18,14 @@ type TestResults struct {
 }
 
 type Test interface {
-	Run(testRunner *TestRunner, number int, rules *lib.Rules) bool
+	Run(testRunner *TestRunner, number int, rules *lib.Rules, userMap *lib.UserMap) bool
 }
 
-func NewTestRunner(testFile *FileRoot, rules *lib.Rules) TestRunner {
+func NewTestRunner(testFile *FileRoot, rules *lib.Rules, userMap *lib.UserMap) TestRunner {
 	return TestRunner{
 		TestFile: testFile,
 		Rules:    rules,
+		userMap:  userMap,
 	}
 }
 
@@ -32,13 +34,13 @@ func (r *TestRunner) RunTests() {
 		Passed: 0,
 		Failed: 0,
 	}
-	results.Add(RunTests(r, "SubprocessToDiscord", r.TestFile.Tests.SubprocessToDiscord, r.Rules))
-	results.Add(RunTests(r, "DiscordToSubprocess", r.TestFile.Tests.DiscordToSubprocess, r.Rules))
+	results.Add(RunTests(r, "SubprocessToDiscord", r.TestFile.Tests.SubprocessToDiscord, r.Rules, r.userMap))
+	results.Add(RunTests(r, "DiscordToSubprocess", r.TestFile.Tests.DiscordToSubprocess, r.Rules, r.userMap))
 
 	fmt.Printf("Finished: Tests passed: %v, failed: %v\n", results.Passed, results.Failed)
 }
 
-func RunTests[T Test](testRunner *TestRunner, bannerTitle string, tests []T, rules *lib.Rules) TestResults {
+func RunTests[T Test](testRunner *TestRunner, bannerTitle string, tests []T, rules *lib.Rules, userMap *lib.UserMap) TestResults {
 	results := TestResults{
 		Passed: 0,
 		Failed: 0,
@@ -47,7 +49,7 @@ func RunTests[T Test](testRunner *TestRunner, bannerTitle string, tests []T, rul
 	printBanner(bannerTitle, len(tests))
 
 	for i, test := range tests {
-		pass := test.Run(testRunner, i, rules)
+		pass := test.Run(testRunner, i, rules, userMap)
 		if pass {
 			results.Passed++
 		} else {
@@ -66,8 +68,9 @@ func printBanner(bannerTitle string, amountTests int) {
 	fmt.Printf(banner)
 }
 
-func (t SubprocessToDiscordTest) Run(_ *TestRunner, number int, rules *lib.Rules) bool {
+func (t SubprocessToDiscordTest) Run(_ *TestRunner, number int, rules *lib.Rules, userMap *lib.UserMap) bool {
 	result := lib.ApplyRules(rules.SubprocessToDiscord, nil, t.Input)
+	result = lib.ApplyUserTags(result, userMap)
 	if result != t.Expect {
 		fmt.Printf(
 			"❌  SubprocessToDiscordTest Test #%v: FAIL:\n"+
@@ -82,7 +85,7 @@ func (t SubprocessToDiscordTest) Run(_ *TestRunner, number int, rules *lib.Rules
 	return true
 }
 
-func (t DiscordToSubprocessTest) Run(testRunner *TestRunner, number int, rules *lib.Rules) bool {
+func (t DiscordToSubprocessTest) Run(testRunner *TestRunner, number int, rules *lib.Rules, userMap *lib.UserMap) bool {
 	userProps, ok := testRunner.TestFile.UserProps[t.UserProps]
 	if !ok {
 		printError("❌  Test #%v: bad test: missing UserProps \"%v\".\n", number, t.UserProps)

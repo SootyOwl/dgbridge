@@ -17,12 +17,14 @@ type BotParameters struct {
 	RelayChannelId string             // Saved in BotContext
 	Subprocess     *SubprocessContext // Saved in BotContext
 	Rules          lib.Rules          // Saved in BotContext
+	UserMap        lib.UserMap		  // Saved in BotContext
 }
 
 type BotContext struct {
 	relayChannelId string             // ID of destination Discord channel
 	subprocess     *SubprocessContext // Subprocess context
 	rules          lib.Rules          // Message conversion rules
+	userMap        lib.UserMap        // User map for mentioning
 	readyOnce      sync.Once          // Tracks if bot was initialized
 }
 
@@ -41,6 +43,7 @@ func StartDiscordBot(params BotParameters) (func(), error) {
 		relayChannelId: params.RelayChannelId,
 		subprocess:     params.Subprocess,
 		rules:          params.Rules,
+		userMap:        params.UserMap,
 		readyOnce:      sync.Once{},
 	}
 	dg.AddHandler(context.ready())
@@ -57,11 +60,11 @@ func StartDiscordBot(params BotParameters) (func(), error) {
 
 // Handles a discordgo.Ready event.
 // Sets up the jobs to relay text to Discord.
-func (self *BotContext) ready() func(s *discordgo.Session, r *discordgo.Ready) {
+func (context *BotContext) ready() func(s *discordgo.Session, r *discordgo.Ready) {
 	return func(s *discordgo.Session, r *discordgo.Ready) {
-		self.readyOnce.Do(func() {
-			go self.startRelayJob(s, &self.subprocess.StdoutLineEvent)
-			go self.startRelayJob(s, &self.subprocess.StderrLineEvent)
+		context.readyOnce.Do(func() {
+			go context.startRelayJob(s, &context.subprocess.StdoutLineEvent)
+			go context.startRelayJob(s, &context.subprocess.StderrLineEvent)
 		})
 	}
 }
@@ -79,17 +82,21 @@ func (self *BotContext) ready() func(s *discordgo.Session, r *discordgo.Ready) {
 //		channel.
 //	event:
 //		Which subprocess event to listen to
-func (self *BotContext) startRelayJob(session *discordgo.Session, event *ext.EventChannel[string]) {
+func (context *BotContext) startRelayJob(session *discordgo.Session, event *ext.EventChannel[string]) {
 	lineCh := event.Listen()
 	defer event.Off(lineCh)
 	for line := range lineCh {
-		line = lib.ApplyRules(self.rules.SubprocessToDiscord, nil, line)
+		line = lib.ApplyRules(context.rules.SubprocessToDiscord, nil, line)
 		if line == "" {
 			// No rules matched.
 			continue
 		}
+
+		// Apply user tag replacements
+		line = lib.ApplyUserTags(line, &context.userMap)
+
 		// Send the message to the Discord channel
-		_, err := session.ChannelMessageSend(self.relayChannelId, line)
+		_, err := session.ChannelMessageSend(context.relayChannelId, line)
 		if err != nil {
 			log.Printf("error sending message to discord: %v", err)
 		}
@@ -156,13 +163,13 @@ func getAccentColor(s *discordgo.Session, m *discordgo.MessageCreate) int {
 	return 0 // Or some other default color value if desired
 }
 
-func (self *BotContext) messageCreate() func(s *discordgo.Session, m *discordgo.MessageCreate) {
+func (context *BotContext) messageCreate() func(s *discordgo.Session, m *discordgo.MessageCreate) {
 	return func(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if m.Author.ID == s.State.User.ID {
 			// Is bot's own message
 			return
 		}
-		if !(m.ChannelID == self.relayChannelId) {
+		if !(m.ChannelID == context.relayChannelId) {
 			// Is not relay channel
 			return
 		}
@@ -177,13 +184,13 @@ func (self *BotContext) messageCreate() func(s *discordgo.Session, m *discordgo.
 		}
 
 		// Apply conversion rules
-		msg = lib.ApplyRules(self.rules.DiscordToSubprocess, props, msg)
+		msg = lib.ApplyRules(context.rules.DiscordToSubprocess, props, msg)
 		if msg == "" {
 			// No rules matched or message was filtered out.
 			return
 		}
 
 		// Relay the processed message to the subprocess stdin
-		self.subprocess.WriteStdinLineEvent.Broadcast(msg + "\n")
+		context.subprocess.WriteStdinLineEvent.Broadcast(msg + "\n")
 	}
 }

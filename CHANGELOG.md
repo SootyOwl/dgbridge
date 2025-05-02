@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.0
+
+* Add basic user tagging support, translating @user mentions in subprocess messages to
+Discord mentions via a map of usernames to Discord IDs.
+
 ## 1.0.5
 
 * Strip ANSI color codes from relayed messages.
@@ -10,7 +15,7 @@
 
 ## 1.0.3
 
-* Added role color handling with fallback to user accent color.
+* Fixed role color handling with fallback to user accent color.
 
 ## 1.0.2
 

@@ -3,6 +3,9 @@ package lib
 import (
 	"dgbridge/src/ext"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"regexp"
 	"strconv"
@@ -11,6 +14,9 @@ import (
 
 // Added regex to strip ANSI color codes
 var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+// Added regex to find @mentions in the input string
+var mentionRegex = regexp.MustCompile(`@([a-zA-Z0-9_]+)`)
 
 type (
 	Rules struct {
@@ -35,6 +41,33 @@ type (
 	}
 )
 
+// UserMap maps in-game 'nametags' to Discord User IDs, for mentioning.
+type UserMap map[string]string
+
+// LoadUserMap loads a user map from a JSON file.
+func LoadUserMap(path string) (*UserMap, error) {
+	// if the path is not set, return an empty map
+	if path == "" {
+		emptyMap := make(UserMap)
+		return &emptyMap, nil
+	}
+	fileContents, err := os.ReadFile(path)
+	if err != nil {
+		// return an empty map if the file doesn't exist
+		if errors.Is(err, fs.ErrNotExist) {
+			emptyMap := make(UserMap)
+			return &emptyMap, nil
+		}
+		// otherwise return the error
+		return nil, err
+	}
+	var users UserMap
+	err = json.Unmarshal(fileContents, &users)
+	if err != nil {
+		return nil, err
+	}
+	return &users, nil
+}
 
 // LoadRules loads a set of rules from a JSON file.
 func LoadRules(path string) (*Rules, error) {
@@ -82,6 +115,30 @@ func ApplyRule(rule Rule, props *Props, input string) string {
 		return rule.Match.ReplaceAllString(input, buildTemplate(rule.Template, *props))
 	}
 	return ""
+}
+
+// ApplyUserTags replaces @nickname mentions with Discord <@ID> mentions if a match is found in the UserMap
+//
+// Parameters:
+// input: The input string to apply the user tags to.
+// userMap: The user map to use for replacing @nickname mentions with Discord <@ID> mentions.
+func ApplyUserTags(input string, userMap *UserMap) string {
+	if userMap == nil || len(*userMap) == 0 {
+		return input // No user map, return the input as is
+	}
+
+	return mentionRegex.ReplaceAllStringFunc(input, func(match string) string {
+		// Extract the nickname (group 1) from the match
+		nickname := mentionRegex.FindStringSubmatch(match)[1]
+
+		// Check if the nickname exists in the user map
+		if userID, exists := (*userMap)[nickname]; exists {
+			// Found a match, return the Discord mention format
+			return fmt.Sprintf("<@%s>", userID)
+		}
+		// No match found, return the original match
+		return match
+	})
 }
 
 // Builds a rule template for Discord -> Process communication.
