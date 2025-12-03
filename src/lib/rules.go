@@ -30,6 +30,7 @@ type (
 	Author struct {
 		Username      string `validate:"required"`
 		Nickname      string // Nickname might not be set
+		GlobalName    string // GlobalName might not be set
 		Discriminator string `validate:"required"`
 		AccentColor   int    `validate:"required"`
 	}
@@ -107,7 +108,11 @@ func buildTemplate(template string, props Props) string {
 				i++
 				continue
 			case 'U':
-				result = append(result, []rune(props.Author.Username)...)
+				if props.Author.GlobalName != "" {
+					result = append(result, []rune(props.Author.GlobalName)...)
+				} else {
+					result = append(result, []rune(props.Author.Username)...)
+				}
 				i++
 				continue
 			case 'T':
@@ -121,6 +126,8 @@ func buildTemplate(template string, props Props) string {
 			case 'N':
 				if props.Author.Nickname != "" {
 					result = append(result, []rune(props.Author.Nickname)...)
+				} else if props.Author.GlobalName != "" {
+					result = append(result, []rune(props.Author.GlobalName)...)
 				} else {
 					result = append(result, []rune(props.Author.Username)...)
 				}

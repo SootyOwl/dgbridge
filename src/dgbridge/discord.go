@@ -171,6 +171,7 @@ func (self *BotContext) messageCreate() func(s *discordgo.Session, m *discordgo.
 			Author: lib.Author{
 				Username:      m.Author.Username,
 				Nickname:      m.Member.Nick,
+				GlobalName:    m.Author.GlobalName,
 				Discriminator: m.Author.Discriminator,
 				AccentColor:   getAccentColor(s, m),
 			},
